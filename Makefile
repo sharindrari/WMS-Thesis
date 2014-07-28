@@ -1,5 +1,5 @@
 pdf:
-	@TEXINPUTS=.//: pdflatex -synctex=1 --shell-escape main
+	@TEXINPUTS=.//: pdflatex -synctex=1 --shell-escape main	
 all:
 	@TEXINPUTS=.//: pdflatex -synctex=1 --shell-escape main
 	bibtex main

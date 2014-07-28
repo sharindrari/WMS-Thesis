@@ -36,6 +36,9 @@
 \usepackage{listings}
 \usepackage{color}
 \usepackage{newfloat}
+\usepackage{hyperref}
+\usepackage{amsthm}
+
 \usepackage{url}
 \newfloat{algorithm}{t}{lop}
 \floatname{algorithm}{Algorithm}
@@ -73,6 +76,17 @@
 }
 
 
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{definition}[theorem]{Definition}
+
+\def\definitionautorefname{Definition}
+
+
+
+
 
 %----------------------------------------------------------------------------------
 %----------------------------------------------------------------------------------
@@ -82,9 +96,6 @@
 %--- defining default vspaces ---
 \newcommand{\vspacebfigure}{\vspace{0mm}}   % vspace before caption of figure
 \newcommand{\vspaceafigure}{\vspace{-4mm}}   % vspace after caption of figure
-
-
-
 
 %--- define my paragraph ---
 \newcommand{\myparagraph}[1]{\vspace{2mm}\noindent\textbf{#1}}

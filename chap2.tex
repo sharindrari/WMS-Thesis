@@ -4,13 +4,35 @@
 %% You can process specific files by typing their names in at the 
 %% \files=
 %% prompt when you run the file main.tex through LaTeX.
-\chapter{Implementation}
+\chapter{Generating Control-Flow-enriched dataflows from User Programs}
 This chapter revolves around intermediate code generation part of the compiler in which translation of the source program into target code takes place. In the process of translating a program written in a given language into code for a given target machine, a compiler typically constructs a sequence of intermediate representation which can have a variety of forms \cite{lam2006compilers}. High-level representations are close to the source language and low-level representations are close to the target machine. Syntax trees are one of the most commonly used form of high-level intermediate representation during syntax and semantic analysis. In this thesis, we do not create our own syntax trees representation but reuse the Scala Abstract Syntax Trees (AST) given freely by the Scala compiler's parser and type checker \cite{stocker2010scala}. 
 
 
-\AK{Comment here!}
+\section{Preliminaries}
+\subsection{Abstract Syntax Trees}
+\begin{definition}[Abstract Syntax Tree]
+...
+\end{definition}
+
+\begin{enumerate}
+\item Block
+\item ValDef
+\item ...
+\end{enumerate}
+
+\subsection{Control-Flow Graphs}
+\begin{definition}[Control-Flow Graph]
+...
+\end{definition}
+
+\subsection{Data Dependencies}
+\begin{definition}[Data Dependency]
+...
+\end{definition}
 
 
+
+\section{Translating ASTs to CFGs}
 \begin{figure}[h!]
 \centering
 \includegraphics[width=0.8\linewidth]{figures/CompStructure}
@@ -18,15 +40,26 @@ This chapter revolves around intermediate code generation part of the compiler i
 \label{fig:Compiler}
 \end{figure}
 
-We divide the problem of translating the source program to target code into three stages. The first stage is to traverse the given AST and transform it to a more low-level intermediate representation which is Control Flow Graph (CFG); the steps are depicted in Figure 1.1. This thesis covers the design of the algorithm and implementation to transform the AST into CFG. A sample Scala program with control flow and iteration is presented in this chapter to show the process and result. The second stage is to analyze the CFG and identify the data dependencies between each block of the graph. In the end, we generate the executable code for the underlying system. The driver program of the WMS will then execute this code. The design of the algorithm and expected result of the last two stages are also delivered in this thesis. 
+We divide the problem of translating the source program to target code into three stages. The first stage is to traverse the given AST and transform it to a more low-level intermediate representation which is Control Flow Graph (CFG); the steps are depicted in \autoref{fig:Compiler}. This thesis covers the design of the algorithm and implementation to transform the AST into CFG. A sample Scala program with control flow and iteration is presented in this chapter to show the process and result. \AK{Refer to the listing} The second stage is to analyze the CFG and identify the data dependencies between each block (see Definition \ref{def:block}) of the graph. In the end, we generate the executable code for the underlying system. The driver program of the WMS will then execute this code. The design of the algorithm and expected result of the last two stages are also delivered in this thesis. 
+
+\begin{definition}[Block]
+A block is .....
+\label{def:block}
+\end{definition}
+
+
+
+
 
 \section{Scala AST}
-This section gives necessary introduction to AST to allow the reader to understand the transformation process from the source language to the target language. AST is one of the most important intermediate representations. During parsing, compiler creates syntax-tree nodes to represent significant programming constructs. As analysis continues, information is added to the node in the form of attributes associated to the node depending on the translation to be performed \cite{lam2006compilers}. In this thesis, we do not create our own AST representation but reuse the Scala compiler's parser and type checker. Additionally, the Scala compiler also provides a tool to traverse and transform an AST \cite{stocker2010scala}. 
+This section gives necessary introduction to AST to allow the reader to understand the transformation process from the source language to the target language. The AST is one of the most important intermediate representations. During parsing, the compiler creates syntax-tree nodes to represent significant programming constructs (e.g., ...). As the analysis continues, information is added to the node in the form of attributes associated to the node depending on the translation to be performed \cite{lam2006compilers}. In this thesis, we do not create our own AST representation but reuse the Scala compiler's parser and type checker. Additionally, the Scala compiler also provides a tool to traverse and transform an AST \cite{stocker2010scala}.
 
-Scala AST or Trees are the basis of abstract syntax which is used to represent programs. The Scala compiler uses AST as an intermediate representation before generating bytecode \cite{demarne2014scala}. In Scala reflection, Trees can be produced or used by the following APIs \cite{symboltreestypes}.
+The Scala ASTs are the basis of abstract syntax which is used to represent programs. The Scala compiler uses ASTs as an intermediate representation before generating bytecode \cite{demarne2014scala}. In Scala reflection, Trees can be produced or used by the following APIs\footnote{http://lang.org/overviews/reflection/symbols-trees-types.html}:
+
+\AK{What is a macro? With an example.}
 
 \begin{itemize}
-\item Scala annotations. This API uses AST to represent their arguments and is exposed in \texttt{Annotation.scalaArgs}. 
+\item Scala annotations. This API uses the AST to represent their arguments and is exposed in \texttt{Annotation.scalaArgs}. 
 \item \texttt{reify}. This special method takes an expression and returns an AST that represent this expression.
 \item Compile time reflection with macros \cite{scalamacros} and runtime compilation with toolboxes use trees as their program representation medium. Macros expand trees at compile time allowing programmers to hack and manipulate AST within the compilation scope \cite{burmako2013scala}. 
 \end{itemize} 
@@ -48,8 +81,10 @@ def whileLoop(cond: => Boolean)(body: => Unit): Unit = if (cond) { body ; whileL
 Scala macros is used in this thesis to lift the root Block of a Scala program into a monatic comprehension of intermediate representation. We present a sample Scala program with iteration and an If statement inside the iteration (refer to Listing 1.2) and show the generated Scala AST of the program. 
 \\
 \begin{lstlisting}[language=scala, caption=Workflow with Conditional, label = workflow2]
-val e1 = DataSource("/tmp/input1.txt", CsvInputFormat[(String, Int, Int)]()).filter(x => x._1 == "Joshua")
-val e2 = DataSource("/tmp/input2.txt", CsvInputFormat[(String, Int, Int)]()).filter(x => x._1 == "Marten")
+val e1 = DataSource("/tmp/input1.txt", CsvInputFormat[(String, Int, Int)]())
+          .filter(x => x._1 == "Joshua")
+val e2 = DataSource("/tmp/input2.txt", CsvInputFormat[(String, Int, Int)]())
+          .filter(x => x._1 == "Marten")
 var e3: DataSet[(String, Int, Int)] = null
 var i = 0
 
@@ -75,7 +110,10 @@ As shown in Scala AST in Figure 1.2, the program is represented by a Block which
 \end{figure}
 
 \section{CFG Definition}
-The CFG is another intermediate representation that is produced from Scala AST in the first stage of the algorithm. Frances E. Allen \cite{allen1970control} defines a CFG as "a directed graph in which the nodes represent basic blocks and the edges represent control flow paths". CFG serves as framework for static analysis of program control flow. Many code generators partition intermediate representation instructions into basic blocks, which consist of sequences of instructions or statements that are always executed together \cite{lam2006compilers}. Basic blocks are a straight line, single-entry code with no branching except at the end of the sequence. 
+The CFG is another intermediate representation that is produced from Scala AST in the first stage of the algorithm. Frances E. Allen \cite{allen1970control} defines a CFG as "a directed graph in which the nodes represent basic blocks and the edges represent control flow paths". The CFG serves as framework for static analysis of program control flow. Many code generators partition intermediate representation instructions into basic blocks, which consist of sequences of instructions or statements that are always executed together \cite{lam2006compilers}. Basic blocks are a straight line, single-entry code with no branching except at the end of the sequence. 
+
+\AK{Define the basic blocks earlier in the preliminaries.}
+
 
 \begin{figure}[h!]
 \centering
