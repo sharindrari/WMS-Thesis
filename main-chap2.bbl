@@ -1,0 +1,46 @@
+\begin{thebibliography}{1}
+
+\bibitem{symboltreestypes}
+Symbol, trees, and types.
+\newblock {\em
+  http://docs.scala-lang.org/overviews/reflection/symbols-trees-types.html},
+  2011.
+
+\bibitem{allen1970control}
+Frances~E Allen.
+\newblock Control flow analysis.
+\newblock In {\em ACM Sigplan Notices}, volume~5, pages 1--19. ACM, 1970.
+
+\bibitem{scalamacros}
+Eugene Burmako.
+\newblock Scala macros.
+\newblock {\em http://docs.scala-lang.org}, 2011.
+
+\bibitem{burmako2013scala}
+Eugene Burmako.
+\newblock Scala macros: Let our powers combine!: On how rich syntax and static
+  types work with metaprogramming.
+\newblock In {\em Proceedings of the 4th Workshop on Scala}, page~3. 2013.
+
+\bibitem{demarne2014scala}
+Mathieu Demarne, Adrien Ghosn, and Eugene Burmako.
+\newblock Scala ast persistence.
+\newblock Technical report, 2014.
+
+\bibitem{lam2006compilers}
+Monica Lam, Ravi Sethi, JD~Ullman, and Alfred Aho.
+\newblock {\em Compilers: Principles, Techniques, and Tools}.
+\newblock Addison-Wesley, 2006.
+
+\bibitem{odersky2004scala}
+Martin Odersky, Philippe Altherr, Vincent Cremet, Burak Emir, Stphane
+  Micheloud, Nikolay Mihaylov, Michel Schinz, Erik Stenman, and Matthias
+  Zenger.
+\newblock The scala language specification, 2004.
+
+\bibitem{stocker2010scala}
+Mirko Stocker.
+\newblock {\em Scala Refactoring}.
+\newblock PhD thesis, HSR Hochschule f{\"u}r Technik Rapperswil, 2010.
+
+\end{thebibliography}
