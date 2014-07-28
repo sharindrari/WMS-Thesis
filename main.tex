@@ -34,6 +34,7 @@
 \usepackage{float}
 \usepackage{qtree}
 \usepackage{listings}
+\usepackage{color}
 \usepackage{newfloat}
 \usepackage{url}
 \newfloat{algorithm}{t}{lop}
@@ -70,6 +71,45 @@
   morestring=[b]',
   morestring=[b]"""
 }
+
+
+
+%----------------------------------------------------------------------------------
+%----------------------------------------------------------------------------------
+\definecolor{lightgray}{rgb}{.8,.8,.8}  % define new color
+% \sethlcolor{lightgray}  % define highlight and mynote color
+
+%--- defining default vspaces ---
+\newcommand{\vspacebfigure}{\vspace{0mm}}   % vspace before caption of figure
+\newcommand{\vspaceafigure}{\vspace{-4mm}}   % vspace after caption of figure
+
+
+
+
+%--- define my paragraph ---
+\newcommand{\myparagraph}[1]{\vspace{2mm}\noindent\textbf{#1}}
+
+\newcommand{\myparagraphnobold}[1]{\vspace{2mm}\noindent #1}
+
+%\newcommand{\para}[1]{\paragraph*{#1}}
+\newcommand{\para}[1]{\vspace{2mm}\noindent\textbf{#1}}
+
+%--- general gray box for notes ---
+\newcommand{\mynote}[1]{\par\noindent\colorbox{lightgray}{\parbox{\linewidth}{#1}}}
+\newcommand{\mybignote}[1]{\mynote{\centering --- \textbf{#1} ---}\\[-1mm]}
+% \renewcommand{\mynote}[1]{}
+
+%--- comments from authors ---
+\newcommand{\mynotesf}[1]{\mynote{\textsf{#1}}}
+%--- comments from authors ---
+\newcommand{\reminder}[1]{[[[\vadjust{\vbox to0pt{\vss\hbox to0pt{\hss{\Large $\Longrightarrow$}}}}{{\textsf{\small #1}}}]]]}
+% \renewcommand{\reminder}[1]{}
+% \newcommand{\reminder}[1]{}
+\newcommand{\AK}[1]{\textcolor{red}{\mynotesf{AK:~#1}}}
+\newcommand{\TODO}[1]{\textcolor{red}{\mynotesf{TODO:~#1}}}
+%% placeholder for a variable or constant
+\newcommand{\ph}[1]{\texttt{#1}}
+
 
 \lstset{
     breaklines = true
