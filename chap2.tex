@@ -55,7 +55,7 @@ We define the scope of the language grammar for our thesis as depicted in Figure
 \end{figure}
 
 \begin{definition}[Postfix Form]
-Postfix form for an expression $E$ can be defined as follows:
+Postfix form for an expression $E$ can be defined as follows \cite{lam2006compilers}:
 \begin{enumerate}
 \item If $E$ is a variable or constant, then the postfix form for E is E itself. 
 \item If $E$ is an expression of the form $E_{1}$ \textbf{op} $E_{2}$, where \textbf{op} is any binary operator, then the postfix form for $E$ is $E_{1}'$ $E_{2}'$ \textbf{op} where $E_{1}'$ and $E_{2}'$ are the postfix forms of $E_{1}$ and $E_{2}$ respectively. 
@@ -77,7 +77,10 @@ The Control-Flow Graph (CFG) is another intermediate representation that is prod
 Edges represent possible flow of control from the end of one block to the beginning of the other. There may be multiple incoming or outgoing edges for each block \cite{allen1970control}. After the intermediate code has been partitioned into basic blocks, the flow of control between them can be represented by a CFG. There is an edge from block A to block B if and only if it is possible for the first statement in block B to immediately follow the last statement in block A. Given a Block statement, If-Then-Else statement, and While-statement, we formulate the expected CFG result from the first stage of the algorithm as shown in Figure \ref{fig:Graph}. CFG(S) is a CFG of high-level statement S. CFG(S) is a single entry and single-exit graph with one entry node and one exit node both in the form of a basic block. In the first stage of our algorithm, construction of CFG(S) is recursively defined and will be presented in detailed in the next section. 
 
 \subsection{Data-Flow Analysis}
-In the second stage of our algorithm, we analyze the graph to detect data dependencies and subsequently add another type of Edges which show the data dependencies between the nodes of the CFG. Data dependencies describe the normal situation that the data some statements or basic blocks use depends on the data created by other statements or other basic blocks. Data-flow analysis aims to derive information about the flow of data along with program execution paths. In analyzing the behavior of a program, all the possible sequences of program points ("paths") through a CFG that the program execution can take must be considered. From the possible program states at each point, we extract the information we need for the particular data-flow analysis problem to be solved. The possible execution paths in a CFG can be defined as follows \cite{lam2006compilers}.
+\label{sec:DFAnalysis}
+The CFG introduced in the previous section capture one aspect of dependencies among parts of program \cite{young2008software}. Although CFG depicts the control flow of the program, the transmission of information through program variables is missing from the graph. Data flow models resulted from Data-Flow analysis provide a complimentary view, showing relations involving transmission of information \cite{young2008software}. 
+
+In the second stage of our algorithm, we analyze the graph to detect data dependencies and subsequently add another type of edges which contain information of the data dependencies between the nodes of the CFG. Data dependencies describe the normal situation that the data some statements or basic blocks use depends on the data created by other statements or other basic blocks. Data-flow analysis aims to derive information about the flow of data along with program execution paths. In analyzing the behavior of a program, all the possible sequences of program points ("paths") through a CFG that the program execution can take must be considered. From the possible program states at each point, we extract the information we need for the particular data-flow analysis problem to be solved. The possible execution paths in a CFG can be defined as follows \cite{lam2006compilers}.
 \begin{itemize}
 \item Within one basic block, the program point after a statement is the same as the program point before the next statement. 
 \item If there is an edge from block $B_{1}$ to block $B_{2}$, then the program point after the last statement of $B_{1}$ may be followed immediately by the program point before the first statement of $B_{2}$. 
@@ -99,28 +102,35 @@ Given a CFG, in a forward data-flow problem the IN set of a basic block B is com
 \begin{algorithmic}\centering
 \State${IN[B] = \cup_{P\:a\:predecessor\:of\:B}\:OUT[P]}$
 \end{algorithmic}
-When the data-flow is backwards, which we will see in detail in live-variable analysis subsection, the equations are similar, but the roles of IN and OUT are reversed as follow:
+Vice versa, a backward data-flow problem occurs when the IN set of a basic block B is computed from the OUT set of B's successor. When the data-flow is backwards, which we will see in detail in live-variable analysis subsection, the equations are similar, but the roles of IN and OUT are reversed as follow:
 \begin{algorithmic}\centering
 \State${IN[B] = f_{B}(OUT[B])}$
 \State${OUT[B] = \cup_{S\:a\:successor\:of\:B}\:IN[S]}$
 \end{algorithmic}
 
-\subsubsection{Definition-Use Pair}
-The most fundamental class of data flow model associates the point in a program where a value is produced (called a "definition") with the points at which the value may be accessed (called a "use"). Associations of definitions and uses fundamentally capture the flow of information through a program, from input to output. Definitions occur where variables are declared or initialized, assigned values, or received as parameters, and in general at all statements that change the value of one or more variables. Uses occur in expressions, conditional statements, parameter passing, return statements, and in general in all statements whose execution extracts a value from a variable \cite{young2008software}.
+\subsubsection{Live Variable Analysis}
+The purpose of Live variable analysis is to know for variable $x$ and point $p$ whether the value of $x$ at $p$ could be used along some path in CFG starting at $p$. If so, then $x$ is said to be live at $p$; otherwise, $x$ is dead at $p$. The basic motivation of live variable analysis is to manage register allocation. A program contains an unbounded number of variables and must be executed on a machine with bounded number of registers. Two variables can use the same register if they are never in use at the same time (i.e. never simultaneously live). The result of this live-variable analysis is also used to enrich our CFG from the first stage of the algorithm with the data dependencies information. Live-variable analysis is an example of a backward data-flow problem \cite{lam2006compilers}. 
 
-\subsubsection{Live Variable}
+The point in a program where a value is produced (called a "definition") is associated with the points at which the value may be accessed (called a "use") by the most fundamental class of data flow model \cite{young2008software}. Associations of definitions and uses fundamentally capture the flow of information through a program, from input to output. Definitions occur where variables are declared or initialized, assigned values, or received as parameters, and in general at all statements that change the value of one or more variables. Uses occur in expressions, conditional statements, parameter passing, return statements, and in general in all statements whose execution extracts a value from a variable \cite{young2008software}.
+
+\cite{lam2006compilers} define the data-flow equations in terms of IN[$B$] and OUT[$B$], which represent the set of variables live at the points immediately before and after block B, respectively as follows:
+\begin{itemize}
+\item define $def_{B}$ as the set of variables defined (i.e. assigned values) in basic block B prior to any use of that variable in B, and 
+\item define $use_{B}$ as the set of variables whose values may be used in B prior to any definition of the variable. 
+\end{itemize}
+These definitions lead to any variable in $use_{B}$ considered live when entering Block $B$. Whereas definitions of variables in $def_{B}$ are dead at the beginning of $B$.
+We associate the $use$ and $def$ to the unknowns IN and OUT problem. No variables are live on exit on the program \cite{lam2006compilers}. Hence,
+\begin{algorithmic}\centering
+\State${IN[EXIT] = \emptyset}$.
+\end{algorithmic}
+A variable is defined live when entering a block if either it is used before redefinition in the block or it is live coming out of the block and is not redefined inside the block. A variable is coming out of the block if and only if it is live when entering one of its successors. These two definitions can be summarized into the following equations. 
+\begin{algorithmic}\centering
+\State${IN[B] = use_B \cup (OUT[B] - def_{B})}$
+\State${OUT[B] = \cup_{S\:a\:successor\:of\:B}\:IN[S]}$
+\end{algorithmic}
+Information flow for liveness is directed backward, opposite to the direction of control flow since in this problem, we want to make sure that the use of variable $x$ at point $p$ is transmitted to all points prior to $p$ in an execution path. Thus, we may know at the prior point that $x$ will have its value used in the later points. To solve a backward problem, IN[EXIT] is initialized instead of OUT[ENTRY]. The solution to liveness equation is not necessarily unique and the aim is to find a solution with the smallest sets of live variables.
 
 \subsubsection{Reaching Definition}
-
-\subsubsection{Data Dependence Graph}
-We enrich our CFG with Edges are Def-Use pairs, labeled with variable names. Nodes is the 
-A dependency graph depicts the flow of information among the attribute instances in a particular AST. An edge from one attribute instance to another means that the value of the first is needed to compute the second. Edges represent the constraints that are implied by semantic rules as follows \cite{lam2006compilers}.
-\begin{itemize}
-\item For each AST node, say a node labeled by grammar symbol X, the dependency graph has a node for each attribute associated with X.
-\item Suppose that a semantic rule associated with a production p defines the value of synthesized attribute A.b in terms of the value of X.c. Then, the dependency graph has an edge from X.c to A.b. At every node N labeled A where production p is applied, create an edge to 2
-attribute b at N, from the attribute c at the child of N corresponding to the instance of the symbol X in the body of the production.
-\item Suppose that a semantic rule associated with production p defines the value of inherited attribute B.c in terms of the value of X.a. Then, the dependency graph has an edge from X.a to B.c. For each node N labeled B that corresponds to an occurrence of this B in the body of production p, create an edge to attribute c at N from the attribute a at the node M that corresponds to the occurrence of X. Note that M could be either the parent or sibling of N.
-\end{itemize}
 
 \section{Translating ASTs to CFGs}
 We divide the problem of translating the source program to target code into three stages. The first stage is to traverse the given AST and transform it to a more low-level intermediate representation which is Control Flow Graph (CFG); the steps are depicted in \autoref{fig:Compiler}. This thesis covers the design of the algorithm and implementation to transform the AST into CFG. A sample Scala program with control flow and iteration is presented in this chapter to show the process and result (refer to Listing \ref{workflow2}. The second stage is to analyze the CFG and identify the data dependencies between each block of the graph. In the end, we generate the executable code for the underlying system. The driver program of the WMS will then execute this code. The design of the algorithm and expected result of the last two stages are also delivered in this thesis. 
@@ -185,7 +195,7 @@ if (e1.map(x => x._2).reduce((x, y) => Math.max(x, y)).fetch().head > 50)
     else
     	e3 = e2.map { x => (x._1, x._2 + 1500, x._3)}
 i = i + 1
-    }
+}
 
 val e4 = e3.write("/tmp/output.txt", CsvOutputFormat[(String, Int, Int)]())
 
@@ -197,7 +207,7 @@ As shown in Scala AST in Figure 1.2, the program is represented by a Block which
 \begin{figure}[h!]
 \centering
 \includegraphics[width=0.8\linewidth]{figures/Tree}
-\caption{Scala AST}
+\caption{Scala AST of Program in Listing \ref{workflow2}}
 \label{fig:Tree}
 \end{figure}
 
@@ -372,5 +382,64 @@ We perform this algorithm with the input of the Scala AST of the program in List
 \label{fig:FinalGraph}
 \end{figure}
 
+\section{Generate Control Flow Enriched Data-Flow}
+As described in section \ref{sec:DFAnalysis}, the CFG produced from the first stage of algorithm not yet depicts the transmission of information through program variables. Hence, in this stage of algorithm, we perform data-flow analysis on the CFG with the aim to compliment the existing CFG with the information on the flow of data between each vertex of the CFG. The flow of data is designed as another type of directed edge in the CFG which contains information of the variable that is shared from the one vertex to the vertex. 
 
+\subsection{Generate Def-Use Pair}
+In order to compliment the CFG with the data flow edges, the first step that we need to perform is to compute the set of variables defined and the set of variables used in each vertex of the CFG, which is denoted by $def_{B}$ and $use_{B}$, respectively (refer to theory in section \ref{sec:DFAnalysis}). Each vertex in the CFG is the same as basic block that we see in the theory - we will use the term vertex instead of basic block in this section. 
+
+Furthermore, we want to associate the vertex of the graph to the variable in the program that it defines or uses. Let the vertex be $B$ and each variable in the program be $v$. Then the association between the vertex and variable of the program can be defined as follows:
+
+\begin{algorithmic}
+\State$def_{(B,v)}\:holds,\:for\:a\:variable\:v\:and\:a\:vextex\:B,\:if\:B\:defines\:v$
+\State$use_{(B,v)}\:holds,\:for\:a\:variable\:v\:and\:a\:vextex\:B,\:if\:B\:uses\:the\:value\:of\:v$
+\end{algorithmic}
+
+Using these definitions, we generate the Def-Use pair information for each of the vertex in G(V,E) resulted from the first stage of the algorithm using the sample program in Listing \ref{workflow2}. The complimented CFG is depicted in Figure \ref{fig:DefUseGraph}.
+
+\begin{figure}[h!]
+\centering
+\includegraphics[width=0.9\linewidth]{figures/DefUsePairGraph}
+\caption{CFG with Def-Use Pair Information of Program in Listing \ref{workflow2}}
+\label{fig:DefUseGraph}
+\end{figure}
+ 
+\subsection{Enrich CFG with Data-Flow}
+This subsection is the true essence of our second stage of the algorithm which is to produce a Control Flow enriched Data-Flow by adding another type of directed edges that depicts the information flow on variable of the program. After we compute the Def-Use pair of each vertex in the CFG, we are going to traverse the graph once again to enrich the CFG with another type of edge which is the data-flow edge. The data flow edge is a directed edge depicting the flow of information on program variables between vertices.
+
+The flow of information is derived from the Def-Use pair that we already computed for each vertex. The technique we deploy is by comparing two different vertices and checking whether one vertex $B1$ defines a variable v that the other vertex $B2$ uses. If so, then we draw a directed edge from vertex $B1$ to vertex $B2$ that depicts the data flow of variable v given that $def_{(B1,v)}$ reaches $use_{(B2,v)}$. This last property is related to the definition clear path problem and can be described as follow: 
+\begin{algorithmic}
+\State$def_{(B1,v)}\:reaches\:use_{(B2,v)}\:when\:there\:is\:a\:definition\:clear\:path\:from\:B1\:to\:B2$
+\end{algorithmic}
+
+A definition-use pair is formed only if there is a program path on which the value assigned in the definition can reach the point of use without being overwritten by another value. If there is another assignment to the same variable on the path, we say that the first definition is killed by the second. A definition-clear path is a path from definition to use on which the definition is not killed by another definition of the same variable \cite{young2008software}. Hence, the steps to enrich the CFG resulted from previous stage is summarized in the following Algorithm. The input of our algorithm is CFG G(V,E) with set of vertices V and a set of directed edges E as well as computed Def-Use pair for each vertex. The expected output of our algorithm is Control Flow Enriched Data Flow G(V,E,DFE) with DFE referring to a set of typed-directed edges that depicts the information flow of a variable from one vertex to another vertex. The result of data-flow analysis performed on CFG produced with sample program in Listing \ref{workflow2} is depicted in Figure \ref{fig:DFCFG} below.
+
+\begin{algorithm}[h]
+
+\caption{Adding Data Flow to CFG}\label{CFGDF}
+\begin{algorithmic}[1]
+\Require{$G(V,E) with Def-Use Pair for each vertex$}
+\Ensure{$G(V,E,DFE)$}
+\Initialize { $DFE\gets \emptyset$}
+\Procedure{createCFDFG}{$G$}
+\For{$each\:vertex\: B1\: in\: G$}
+\For{$each\: vertex\: B2\: in\: G\: other\: than\: B1$}
+\For{$each\: variable\: v\: in\: def_{B1}$}
+      \If {$There\: exists\: use(B2,v)\: and\: def(B1,v)\:reaches\: use(B2,v)$}
+      \State $DFE \gets DFE \cup \{(B1,B2,v)\} $
+      \EndIf
+\EndFor
+\EndFor
+\EndFor
+\State \textbf{return} $G$
+\EndProcedure
+\end{algorithmic}
+\end{algorithm}
+
+\begin{figure}[h!]
+\centering
+\includegraphics[width=0.8\linewidth]{figures/DataFlowGraph}
+\caption{Control Flow enriched Data Flow of Program in Listing \ref{workflow2}}
+\label{fig:DFCFG}
+\end{figure}
 
