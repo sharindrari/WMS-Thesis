@@ -4,442 +4,50 @@
 %% You can process specific files by typing their names in at the 
 %% \files=
 %% prompt when you run the file main.tex through LaTeX.
-\chapter{Generating Control-Flow-Enriched Data Flows from User Programs}
-This chapter revolves around intermediate code generation part of the compiler in which translation of the source program into target code takes place. In the process of translating a program written in a given language into code for a given target machine, a compiler typically constructs a sequence of intermediate representation which can have a variety of forms \cite{lam2006compilers}. High-level representations are close to the source language and low-level representations are close to the target machine. Syntax tree is one of the most commonly used forms of high-level intermediate representation during syntax and semantic analysis. During intermediate code generation phase of the compiler, another set of intermediate representation i.e. control flow graph is produced. In the preliminaries section of this chapter, we present overview of the theory around syntax trees and graph in order to equip the reader with necessary knowledge to understand how to generate the control-flow enriched data flows from given user programs which we talk about later in this chapter. 
+\chapter{Background and Related Work} 
 
-\section{Preliminaries}
-\subsection{Syntax Directed Translation}
-Before going through the intermediate code generation phase of the compiler, we first visit its preliminary phase which is the Syntax-Directed Translation phase in which the translation of languages guided by context-free grammars is developed (for formal explanation of context-free grammars, refer to Definition \ref{def:grammar}). The parser uses the components produced by the lexical analyzer to create a tree-like intermediate representation depicting the grammatical structure of the source program \cite{lam2006compilers}. This translation technique will be applied in intermediate code generation. The most general approach to syntax-directed translation is to construct a syntax tree and to compute the values of attributes at the node of the tree by visiting all the nodes \cite{lam2006compilers}. Information is associated with the syntax tree by attaching attributes to the grammar symbols representing the programming construct.
+\section{Workflow Design}
+\cite{yu2005taxonomy} classifies the workflow design to at least three taxonomies, namely: (a) workflow structure, (b) workflow model/specification, and (c) workflow composition system. In the view of workflow structure, a workflow is composed by connecting multiple tasks according to their dependencies. In general, the workflow can be represented as a DAG or non-DAG. The workflow that we develop in this thesis belongs to non-DAG-based workflow. In a non-DAG workflow, workflow structure is categorized into sequence, parallelism, choice, and iteration. Sequence is defined as an ordered series of tasks, with one task starting after a previous task has completed. Parallelism represents tasks which are performed concurrently, rather than serially. In choice control pattern, a task is selected to execute at run-time when its associated conditions are true. In Iteration structure, also known as loop, sections of workflow tasks in an iteration block are allowed to be repeated and is often occurred in workflow of complex use cases \cite{yu2005taxonomy}.  
 
-Syntax-Directed Definition (SDD) is context-free grammar completed with attributes and rules. Attributes are associated with grammar symbols and rules are associated with productions. An attribute is any quantity associated with a programming construct. Example of attributes are data types of expressions, the number of instructions in the generated code, or the location of the first instructions in the generated code for a construct. Since we are using grammar symbols (nonterminals and terminals), the notion of attributes is extended from constructs to the symbols that represent them.
+Workflow Model, which is also called workflow specification, defines a workflow including its task definition and structure definition. There are two types of workflow models, namely abstract model and concrete model, denoted as abstract workflow and concrete workflow, respectively \cite{deelman2004workflow}. In the abstract model, a workflow is described in an abstract form, in which the workflow is specified without referring to specific resources for task execution. The abstract model enables users to define workflows without being concerned about low-level implementation details. In contrast, the concrete model binds workflow tasks to specific resources \cite{yu2005taxonomy}. In this thesis, we implement the abstract workflow which takes the form of control flow enriched dataflow. Furthermore, we also provide the algorithm to achieve the concrete workflow, namely the job scripts to be executed in the underlying system. 
 
-A context-free grammar in itself specifies a set of terminal symbols (inputs), another set of nonterminals (e.g. symbols representing syntactic context), and a set of productions. Each of these gives way in which strings represented by one nonterminal can be constructed from terminal symbols and strings represented by other nonterminals. Production consists of a head which is the nonterminals to be replaced and a body which is the replacing string of grammar symbols. There are two kinds of attributes for nonterminals, which are Inherited and Synthesized Attributes. The differences between the two are as follows \cite{lam2006compilers}:
-\begin{itemize}
-\item Synthesized Attributes. A synthesized attribute for a nonterminal A at a parse-tree node N is defined by a semantic rule associated with the production at N.
-\item Inherited Attributes. An inherited attribute for a nonterminal B at a parse-tree node N is defined by a semantic rule associated with the production at the parent of N. Note that the production must have B as a symbol in its body.
-\end{itemize}
-
-\begin{definition}[Context-Free Grammars]
-A context-free grammar has four components as follow \cite{lam2006compilers}:
-\begin{enumerate}
-\item A set of terminal symbols. The terminals are the elementary symbols of the language defined by the grammar. 
-\item A set of nonterminals. Each nonterminal represents a set of strings of terminals. 
-\item A set of productions. Each production consists of a nonterminal, called head or left side of the production, a arrow, and a sequence of terminals and/or nonterminals, called the body or right side of the production. 
-\item One of the nonterminals is designed as the start symbol. 
-\end{enumerate}
-\label{def:grammar}
-\end{definition}
-
-\subsection{Abstract Syntax Trees}
-During syntax-analysis or parsing, the compiler creates syntax-tree nodes to represent significant programming constructs (e.g. operators, classes, control flow etc). This phase takes the list of tokens produced by the lexical analysis and arranges these in a tree-structure that reflects the structure of the program. The purpose of the syntax analysis or parsing phase is to recombine the tokens produced by the lexical analysis as a result of input splitting into a form that reflects the structure of the source program. This form is typically a data structure called the syntax tree or parse tree of the program. As the name indicates, syntax tree is a tree structure \cite{mogensen2009basics}. As the analysis continues, information is added to the node in the form of attributes associated to the node depending on the translation to be performed \cite{lam2006compilers}.
-
-During syntax-directed translation phase in the compiler, a syntax-directed translator is constructed to translate arithmetic expressions into postfix form (see Definition \ref{def:postfix}). Abstract Syntax Tree (AST) is a data structure that is most useful for designing this syntax-directed translator. In an AST for an expression, each interior node represents an operator whereas the children of the node represent the operand of the operator. The difference between AST and the parse tree is that the AST keeps the essence of the structure of the program but omits the irrelevant details \cite{mogensen2009basics}. It corresponds to one or more nodes in the parse tree. In general, any programming construct can be handled by creating an operator for the construct and treating the semantically meaningful components of that construct as operands \cite{lam2006compilers}. The AST represents an expression formed by applying the operator \textbf{op} to the subexpressions represented by $E_{1}$ and $E_{2}$. It can be created for any construct, not limited to expressions. Each construct is represented by a node, with children for the semantically meaningful components of the construct. An operator in the abstract syntax is defined for every statement construct. For constructs that begin with a keyword, the keyword is used for the operator (e.g. operator \textbf{while} for while-statements). 
-
-We define the scope of the language grammar for our thesis as depicted in Figure \ref{fig:grammardef} and explain the syntax tree for a language based on this grammar. Syntax-tree $Expr$ is used to represent all kinds of expressions, and $stmt$ to represent all kinds of statements. Since a block is a grouping of a program, a syntax tree for a program is of type block. When a statement is a block, it has the same syntax tree as the block (hence, $stmt \to block$). The syntax tree for nonterminal block is simply the syntax tree for the sequence of statements in the block. A sequence of statements is represented by using a leaf \textbf{null}. We ignore declarations in our grammar definition since they are not used in the syntax tree. Blocks, with or without declarations, appear to be just another statement construct in intermediate code. Conditionals can be handled by defining two operators \textbf{ifelse} and \textbf{if} for if-statements with and without an else part, respectively. The syntax tree node for a while-statement and a do-while statement has an operator, which we call \textbf{while} and \textbf{dowhile}, respectively and two children - the syntax trees for the $expr$ and the $stmt$. 
+Workflow composition systems are designed for enabling users to assemble components into workflows \cite{yu2005taxonomy}. It consists of two classes: (1) User-directed and (2) automatic.  User-directed composition systems allow users to edit workflows directly, whereas automatic composition systems generate workflows for users automatically \cite{yu2005taxonomy}. Both classes are implemented in this thesis. More specifically, in the user-directed, language-based modeling is applied since we require user to write their program in our Scala DSL. However, the control flow and data dependencies will later be identified automatically by performing the static analysis of the Scala program. In this case, user does not have to specify manually the workflow components and dependencies. To summarize, the taxonomy of workflow that we develop in this thesis is depicted in Figure \ref{fig:Taxonomy}.
 
 \begin{figure}[here]
-\begin{algorithmic}
-\State $ program \to block$
-\State $ block \to '\{' stmts '\}'$
-\State $ stmts \to stmts_{1} stmt $
-\State $ stmts \to \epsilon$
-\State $ stmt \to expr $
-\State $ stmt \to \textbf{if} (expr) stmt_{1}$
-\State $ stmt \to \textbf{if} (expr) stmt_{1} else stmt_{2} $
-\State $ stmt \to \textbf{while} (expr) stmt_{1}$
-\State $ stmt \to \textbf{do} (stmt_{1}) expr $
-\State $ stmt \to block $
-\end{algorithmic}
-\caption{Context-Free Grammar}
-\label{fig:grammardef}
-\end{figure}
-
-\begin{definition}[Postfix Form]
-Postfix form for an expression $E$ can be defined as follows \cite{lam2006compilers}:
-\begin{enumerate}
-\item If $E$ is a variable or constant, then the postfix form for E is E itself. 
-\item If $E$ is an expression of the form $E_{1}$ \textbf{op} $E_{2}$, where \textbf{op} is any binary operator, then the postfix form for $E$ is $E_{1}'$ $E_{2}'$ \textbf{op} where $E_{1}'$ and $E_{2}'$ are the postfix forms of $E_{1}$ and $E_{2}$ respectively. 
-\item If $E$ is a parenthesized expression of the form ($E_{1}$), then the postfix form for $E$ is the same as the postfix form for $E_{1}$
-\end{enumerate}
-\label{def:postfix}
-\end{definition}
-
-\subsection{Control-Flow Graphs}
-The Control-Flow Graph (CFG) is another intermediate representation that is produced during syntax-analysis . Frances E. Allen \cite{allen1970control} defines a CFG as "a directed graph in which the nodes represent basic blocks and the edges represent control flow paths". The CFG serves as framework for static analysis of program control flow. Many code generators partition intermediate representation instructions into basic blocks, which consist of sequences of instructions or statements that are always executed together \cite{lam2006compilers}. Basic blocks are a straight line, single-entry code with no branching except at the end of the sequence. 
-
-\begin{figure}[h!]
 \centering
-\includegraphics[width=0.7\linewidth]{figures/Graph}
-\caption{CFG of Various Statements}
-\label{fig:Graph}
+\includegraphics[width=1.0\linewidth]{figures/taxonomy}
+\caption{Thesis Workflow Design \cite{yu2005taxonomy}}
+\label{fig:Taxonomy}
 \end{figure}
 
-Edges represent possible flow of control from the end of one block to the beginning of the other. There may be multiple incoming or outgoing edges for each block \cite{allen1970control}. After the intermediate code has been partitioned into basic blocks, the flow of control between them can be represented by a CFG. There is an edge from block A to block B if and only if it is possible for the first statement in block B to immediately follow the last statement in block A. Given a Block statement, If-Then-Else statement, and While-statement, we formulate the expected CFG result from the first stage of the algorithm as shown in Figure \ref{fig:Graph}. CFG(S) is a CFG of high-level statement S. CFG(S) is a single entry and single-exit graph with one entry node and one exit node both in the form of a basic block. In the first stage of our algorithm, construction of CFG(S) is recursively defined and will be presented in detailed in the next section. 
+\section{Control Flow vs Data Flow}
+In addition to the three taxonomies described in the previous section, most, if not all, workflow design belongs to one of two classes: control flow or data flow. The two classes are similar in that they specify the interaction between individual tasks within the group that comprise the workflow. The difference between the two is in their methods of implementing that interaction. In control-driven workflows, or control flows, the connections between the activities in a workflow represent a transfer of control from the preceding task to successor task. This includes control structures such as sequences, conditionals, and iterations. Data-driven workflows, or data flows, on the other hand, are designed to support data-driven applications. The dependencies represent the flow of data between workflow activities from data producer to data consumer \cite{deelman2009workflows}. More details explanation on control flow and data flows are presented in the following sections. 
 
-\subsection{Data-Flow Analysis}
-\label{sec:DFAnalysis}
-The CFG introduced in the previous section capture one aspect of dependencies among parts of program \cite{young2008software}. Although CFG depicts the control flow of the program, the transmission of information through program variables is missing from the graph. Data flow models resulted from Data-Flow analysis provide a complimentary view, showing relations involving transmission of information \cite{young2008software}. 
+\subsection{Control Flow}\label{ch1:opts}
+Most control flow languages provide support not only for simple flows of control between components or services in the workflow but also for more complex control interactions such as iterations and conditionals. Users of workflow systems often require more than the simple control constructs that are available to them. The ability to perform branching in the workflow based on conditions and loop over sections of the workflow repeatedly is important for all applications especially for complex use cases \cite{deelman2009workflows}. The issue is not whether these facilities should exist but how to represent them in the workflow language and to what degree the language should support them. For instance, there is a question to whether a single simple loop construct is  enough, or whether the language should support all loop types(i.e. while, do while, for). In the case of conditional behaviour, the problem is determining whether the incoming value and the conditional value are equivalent \cite{deelman2009workflows}. 
 
-In the second stage of our algorithm, we analyze the graph to detect data dependencies and subsequently add another type of edges which contain information of the data dependencies between the nodes of the CFG. Data dependencies describe the normal situation that the data some statements or basic blocks use depends on the data created by other statements or other basic blocks. Data-flow analysis aims to derive information about the flow of data along with program execution paths. In analyzing the behavior of a program, all the possible sequences of program points ("paths") through a CFG that the program execution can take must be considered. From the possible program states at each point, we extract the information we need for the particular data-flow analysis problem to be solved. The possible execution paths in a CFG can be defined as follows \cite{lam2006compilers}.
-\begin{itemize}
-\item Within one basic block, the program point after a statement is the same as the program point before the next statement. 
-\item If there is an edge from block $B_{1}$ to block $B_{2}$, then the program point after the last statement of $B_{1}$ may be followed immediately by the program point before the first statement of $B_{2}$. 
-\end{itemize}
-In \cite{lam2006compilers}, $Execution\;path$ or $path$ from point $p_{1}$ to point $p_{n}$ is defined as a sequence of points $p_{1}, p_{2}, ..., p_{n}$ such that for each $i = 1, 2, ..., n-1$, either 
-\begin{enumerate}
-\item $p_{i}$ is the point immediately preceding a statement and $p_{i+1}$ is the point immediately following that same statement, or 
-\item $p_{i}$ is the end of some block and $p_{i+1}$ is the beginning of a successor block. 
-\end{enumerate}
+\subsubsection{Iterations}
 
-\subsubsection{Data-Flow Analysis Schema on Basic Blocks}
-A \textbf{data-flow value} at a program point represents the set of all possible program states that can be observed for that point, for example, all definitions in the program that can reach that point \cite{lam2006compilers}. We denote the data-flows values immediately before and immediately after each basic block B in a CFG of a program by IN[B] and OUT[B], respectively. A transfer function $f_{B}$ relates the data-flow values before and after a block B. Transfer functions can be either the information that propagate forward along the execution paths, or the information that flow backwards up the execution paths. The \textbf{data-flow problem} for a CFG is to compute the values of IN[B] and OUT[B] for all blocks B in the CFG \cite{lam2006compilers}. 
+\subsubsection{Conditionals}
 
-Suppose block B contains of statements $s_{1},...,s_{n}$. If $s_{1}$ is the first statement of the basic block B, then IN[B] = IN[$s_{1}$]. Similarly, if $s_{n}$ is the last statement of basic block B, then OUT[B] = OUT[$s_{n}$]. The transfer function of a basic block B, denoted by $f_{B}$ is derived by composing the transfer functions of the statements in the block. That is, let  $f_{s_{i}}$ be the transfer function of statement $s_{i}$. Then $f_{B}$ = $f_{s_{n}}$ \textopenbullet ... \textopenbullet $f_{s_{2}}$ \textopenbullet $f_{s_{1}}$. \cite{lam2006compilers} defines the relationship between the beginning and the end of the block as follow:
-\begin{algorithmic}\centering
-\State${OUT[B] = f_{B}(IN[B])}$
-\end{algorithmic}
-Given a CFG, in a forward data-flow problem the IN set of a basic block B is computed from the OUT sets of B's predecessors. 
-\begin{algorithmic}\centering
-\State${IN[B] = \cup_{P\:a\:predecessor\:of\:B}\:OUT[P]}$
-\end{algorithmic}
-Vice versa, a backward data-flow problem occurs when the IN set of a basic block B is computed from the OUT set of B's successor. When the data-flow is backwards, which we will see in detail in live-variable analysis subsection, the equations are similar, but the roles of IN and OUT are reversed as follow:
-\begin{algorithmic}\centering
-\State${IN[B] = f_{B}(OUT[B])}$
-\State${OUT[B] = \cup_{S\:a\:successor\:of\:B}\:IN[S]}$
-\end{algorithmic}
+\subsection{Data Flow Model}
+Most data flow representations are very simple in nature, and unlike their control flow counterparts, contain nothing apart from component or service descriptions and the data dependencies between them; control constructs such as loops are generally not included. In Triana’s workflow language, there are no control constructs at all; the dependencies between tasks are data dependencies, ensuring the data producer has finished before the consumer may start. Looping and conditional behaviour is performed through the use of specific components; a branch component with two or more output connections will output data on different connections, depending upon some condition. Loops are handled by making a circular connection in the workflow and having a conditional component break the loop upon a finishing condition, outputting to continue normal workflow execution. The benefit of both of these solutions to control behaviour in data flows is that the language representations remain simple. The downside is that the potential for running the workflow on different systems is reduced since the other system must have access not only to the workflow but to the components or services that perform the control operations \cite{deelman2009workflows}.
 
-\subsubsection{Live Variable Analysis}
-The purpose of Live variable analysis is to know for variable $x$ and point $p$ whether the value of $x$ at $p$ could be used along some path in CFG starting at $p$. If so, then $x$ is said to be live at $p$; otherwise, $x$ is dead at $p$. The basic motivation of live variable analysis is to manage register allocation. A program contains an unbounded number of variables and must be executed on a machine with bounded number of registers. Two variables can use the same register if they are never in use at the same time (i.e. never simultaneously live). The result of this live-variable analysis is also used to enrich our CFG from the first stage of the algorithm with the data dependencies information. Live-variable analysis is an example of a backward data-flow problem \cite{lam2006compilers}. 
+A dataflow is a directed acyclic graph (DAG) that consists of operators, sources, and sinks. The data sources and sinks, as well as the intermediate data sets that flow through operators, are bags of records. The operators are the inner nodes in the DAG, and can be thought of as functions f : {I1,...,In} → O, where Ii and O are bags of records. A dataflow construct of several operators is therefore a function, whose fixpoint we can find by “closing the loop” in the dataflow DAG \cite{ewen2012spinning}.
 
-The point in a program where a value is produced (called a "definition") is associated with the points at which the value may be accessed (called a "use") by the most fundamental class of data flow model \cite{young2008software}. Associations of definitions and uses fundamentally capture the flow of information through a program, from input to output. Definitions occur where variables are declared or initialized, assigned values, or received as parameters, and in general at all statements that change the value of one or more variables. Uses occur in expressions, conditional statements, parameter passing, return statements, and in general in all statements whose execution extracts a value from a variable \cite{young2008software}.
+\section{Related Work}
+There are some major existing dataflow systems and workflow systems that are interesting to mention. This section presents these different dataflow and workflow systems and discuss their characteristics and relate them to the DSL that we intend to build in this thesis. 
 
-\cite{lam2006compilers} define the data-flow equations in terms of IN[$B$] and OUT[$B$], which represent the set of variables live at the points immediately before and after block B, respectively as follows:
-\begin{itemize}
-\item define $def_{B}$ as the set of variables defined (i.e. assigned values) in basic block B prior to any use of that variable in B, and 
-\item define $use_{B}$ as the set of variables whose values may be used in B prior to any definition of the variable. 
-\end{itemize}
-These definitions lead to any variable in $use_{B}$ considered live when entering Block $B$. Whereas definitions of variables in $def_{B}$ are dead at the beginning of $B$.
-We associate the $use$ and $def$ to the unknowns IN and OUT problem. No variables are live on exit on the program \cite{lam2006compilers}. Hence,
-\begin{algorithmic}\centering
-\State${IN[EXIT] = \emptyset}$.
-\end{algorithmic}
-A variable is defined live when entering a block if either it is used before redefinition in the block or it is live coming out of the block and is not redefined inside the block. A variable is coming out of the block if and only if it is live when entering one of its successors. These two definitions can be summarized into the following equations. 
-\begin{algorithmic}\centering
-\State${IN[B] = use_B \cup (OUT[B] - def_{B})}$
-\State${OUT[B] = \cup_{S\:a\:successor\:of\:B}\:IN[S]}$
-\end{algorithmic}
-Information flow for liveness is directed backward, opposite to the direction of control flow since in this problem, we want to make sure that the use of variable $x$ at point $p$ is transmitted to all points prior to $p$ in an execution path. Thus, we may know at the prior point that $x$ will have its value used in the later points. To solve a backward problem, IN[EXIT] is initialized instead of OUT[ENTRY]. The solution to liveness equation is not necessarily unique and the aim is to find a solution with the smallest sets of live variables.
+\subsection{Dataflow Systems}
+Pig is a procedural data flow system for MapReduce \cite{gates2009building}. It offers a SQL-stle high-level data manipulation constructs, which can be assembled in any 
 
-\subsubsection{Reaching Definition}
+Pig is a high-level dataflow system that aims at a sweet spot between SQL and Map-Reduce. Pig offers SQL-style high-level data manipulation constructs, which can be as- sembled in an explicit dataflow and interleaved with custom Map- and Reduce-style functions or executables. Pig pro- grams are compiled into sequences of Map-Reduce jobs, and executed in the Hadoop Map-Reduce environment.
 
-\section{Translating ASTs to CFGs}
-We divide the problem of translating the source program to target code into three stages. The first stage is to traverse the given AST and transform it to a more low-level intermediate representation which is Control Flow Graph (CFG); the steps are depicted in \autoref{fig:Compiler}. This thesis covers the design of the algorithm and implementation to transform the AST into CFG. A sample Scala program with control flow and iteration is presented in this chapter to show the process and result (refer to Listing \ref{workflow2}. The second stage is to analyze the CFG and identify the data dependencies between each block of the graph. In the end, we generate the executable code for the underlying system. The driver program of the WMS will then execute this code. The design of the algorithm and expected result of the last two stages are also delivered in this thesis. 
+\subsection{Workflow Systems}
+In recent years, a number of WMSs have emerged in the Big Data community and they are developed to run on top of Hadoop and/or for more general purpose. Within the Hadoop community, a WMS called Apache Oozie is developed to enable user to combine multiple MapReduce jobs into a logical unit of work to accomplish larger tasks or a workflow \cite{islam2012oozie}. Oozie is a Java Web Application that stores the workflow definitions and the currently running workflow instances, includ-ing their status (e.g. running, stalled, failed) and variables (e.g. input files, output files). An Oozie workflow is a sequence of actions (e.g. Hadoop MapReduce jobs, Pig jobs) represented in a control dependency DAG that is specified in the XML Process Definition Language. An Oozie workflow consists of Control Nodes and Action Nodes. Control nodes define the flow of execution and include start and end node of a workflow as well as the mechanisms to control the workflow execution path e.g. decision, fork, and join nodes whereas action Nodes are the mechanism to allow a workflow trigger the execution of a processing task \cite{islam2012oozie}. The Oozie WMS comprises three main components. The first component is a server that is responsible for launching jobs and detecting when datasets arrive in HDFS. The second component is a client, responsible for uploading data to HDFS; in Oozie, users upload their workflow definition to HDFS and use a REST API to submit the workflow to the Oozie server. Finally, the third component is a map task launcher for every single workflow that is run \cref{crobak}. 
 
-\begin{figure}[h!]
-\centering
-\includegraphics[width=0.8\linewidth]{figures/CompStructure}
-\caption{Intermediate Representations}
-\label{fig:Compiler}
-\end{figure}
+- oozie state-oriented workflow with fork and join
 
-\section{Scala AST}
-In this thesis, we do not create our own syntax trees representation but reuse the Scala Abstract Syntax Trees (AST) given freely by the Scala compiler's parser and type checker \cite{stocker2010scala}. This section gives necessary introduction to Scala AST to allow the reader to understand the transformation process from the source language to the target language. As described in the previous section, AST is one of the most important intermediate representations. The Scala compiler's parser and type checker provide the Scala AST as intermediate representation that we can directly work on. Additionally, the Scala compiler also provides a tool to traverse and transform an AST \cite{stocker2010scala}.
+Another example of a WMS that is not built specifically for Hadoop is Luigi and is developed by Spotify.  Luigi is a Python package that helps developers build complex pipelines of batch jobs \footnote{\label{luigi}https://github.com/spotify/luigi}. It facilitates developers to combine many tasks together, where each task may be a Hadoop job, a Hive query, loading a table from a database, etc. Luigi takes care of large portion of the workflow management so that the developer can focus on the tasks themselves and their dependencies. One major difference between Luigi and Oozie is that instead of XML configuration, the DAG in Luigi is specified with Python code constructs. This makes it easy to build complex dependency graphs of tasks. However, the workflow can trigger scripts that are not written in Python e.g., Pig scripts \cref{luigi}. The Luigi WMS consists of a centralized scheduler and a number of workers. The workers communicate with the scheduler over a JSON REST API. Each worker has the code base. In Luigi, the developer defines a job as a Python class. Luigi workers communicate with HDFS and walk through the work-flow DAG and check, for each task, whether a task’s output exists in order to determine the next tasks to be run. After it walks through the DAG, it then runs the tasks e.g. MapReduce jobs \cref{crobak}. 
 
-The Scala ASTs are the basis of abstract syntax which is used to represent programs. The Scala compiler uses ASTs as an intermediate representation before generating bytecode \cite{demarne2014scala}. In Scala reflection, Trees can be produced or used by the following APIs\footnote{http://lang.org/overviews/reflection/symbols-trees-types.html}:
-
-\begin{itemize}
-\item Scala annotations. This API uses the AST to represent their arguments and is exposed in \texttt{Annotation.scalaArgs}. 
-\item \texttt{reify}. This special method takes an expression and returns an AST that represent this expression.
-\item Compile time reflection with macros \cite{burmako2013scala} and runtime compilation with toolboxes use trees as their program representation medium. Macros expand trees at compile time allowing programmers to hack and manipulate AST within the compilation scope \cite{burmako2013scala}.
-\end{itemize} 
-
-\subsection{Scala Macros}
-Compile time metaprogramming is the algorithmic construction of programs at compile-time. Scala macros is an experimental facility to allow user to perform compile-time metaprogramming \cite{burmako2012scala}. With this feature, compiler is enabled to recognize certain methods in Scala programs as metaprograms, or macros, which can be invoked at certain points. When invoked, macros expose a compiler context which includes the compiler's representation of the program being compiled along with an API that provides certain compiler functionality such as parsing and typechecking. Using these API, macros is able to affect compilation e.g. by changing the code being compiled \cite{burmako2013scala}.
-
-$Def macros$, plain methods whose invocations are expanded during compilation, is the most basic form of compile-time metaprogramming and the one that we work with for this thesis. In the eye of the programmer, def macros appear to look like regular Scala methods with a special property-when a method in a Scala method satisfies this property, that macros definition is expanded by invoking a corresponding metaprogram, called $macro implementation$. The only fundamental difference with regular method is that macros are resolved at compile time  \cite{burmako2013scala}. An example of def macro implementation for \texttt{printf} function is depicted in Listing \ref{macros} below.
-\begin{lstlisting}[language=scala,caption=Macros Printf Function \cite{burmako2013scala}, label = macros]
-def printf(format: String, params: Any*): Unit = macro impl
-def impl(c: Context)(format: c.Expr[String], params: c.Expr[Any]*): c.Expr[Unit] = ...
-printf("Hello %s", "world")
-\end{lstlisting}
-
-
-\subsection{AST Classes}
-This section introduces some of the concrete trees classes that are used in traversing the trees in our implementation. All concrete classes are case classes, thus their parameters are listed following the class name as follows \cite{stocker2010scala}. 
-\begin{itemize}
-\item \texttt{Block(stats: List[Tree], expr: Tree)}. A Block consists of a list of statements and returns the value of expr. As the name indicates, this class represents Block in the language grammar. 
-\item \texttt{ValDef(mods: Modifiers, name: Name, tpt: Tree, rhs: Tree)}. Val- ue definitions are all definitions of vals, vars (identified by the MUTABLE flag) and parameters (identified by the param flag). In Scala, aside from value definitions, ValDef can also contain If statement. 
-\item \texttt{LabelDef(name: Name, params: List[Ident], rhs: Tree)}. The Label- Def class is used to represent While and Do-While statement. The Scala language specification \cite{odersky2004scala} defines that the while loop statement \texttt{while(e1) e2} is typed and evaluated as if it is an application of \texttt{whileLoop(e1)(e2)} where the hypothetical function \texttt{whileLoop} is defined in Listing \ref{whileloop}. 
-\begin{lstlisting}[language=scala,caption=WhileLoop Function, label = whileloop]
-def whileLoop(cond: => Boolean)(body: => Unit): Unit = if (cond) { body ; whileLoop(cond)(body) } else {}
-\label{def:program}
-\end{lstlisting}
-\item \texttt{Assign(lhs: Tree, rhs: Tree)}. Assign trees are used for non-initial assignments to variables. The lhs typically consists of an Ident(name) and is assigned the value of the rhs which normally contains an application (Apply) of a function. 
-\item \texttt{If(cond: Tree, thenp: Tree, elsep: Tree)}. An If statement consists of three parts: the condition, the then part and the else part. If the else part is omitted, the literal () of type Unit is generated and the type of the conditional is set to an upper bound of Unit and the type of the then expression, usually Any. As the name indicates, this class represents the If statement in the language grammar. 
-\end{itemize}
-
-\subsection{Generating Scala AST}
-Scala macros is used in this thesis to lift the root Block of a Scala program into a monatic comprehension of intermediate representation. We present a sample Scala program with iteration and an If statement inside the iteration (refer to Listing 1.2) and show the generated Scala AST of the program. 
-\\
-\begin{lstlisting}[language=scala, caption=Workflow with Conditional, label = workflow2]
-val e1 = DataSource("/tmp/input1.txt", CsvInputFormat[(String, Int, Int)]())
-          .filter(x => x._1 == "Joshua")
-val e2 = DataSource("/tmp/input2.txt", CsvInputFormat[(String, Int, Int)]())
-          .filter(x => x._1 == "Marten")
-var e3: DataSet[(String, Int, Int)] = null
-var i = 0
-
-while(i < 0) {
-if (e1.map(x => x._2).reduce((x, y) => Math.max(x, y)).fetch().head > 50)
-        e3 = e1.map { x => (x._1, x._2 + 1000, x._3)}
-    else
-    	e3 = e2.map { x => (x._1, x._2 + 1500, x._3)}
-i = i + 1
-}
-
-val e4 = e3.write("/tmp/output.txt", CsvOutputFormat[(String, Int, Int)]())
-
-e4
-\end{lstlisting}
-
-As shown in Scala AST in Figure 1.2, the program is represented by a Block which consists of list of statements and an expression which holds the final return value. Each of the variable definition is presented by a ValDef. The LabelDef in the AST represent the While statement in the program and consists of a name and a rhs of type If. The If statement consists of the three parts: condition, then part, and else part. In the while or LabelDef case, the else part which is of type Literal only contains an empty constant value. The then part is expanded to another list of statements and expression. Given that in the sample Scala program, there is a control flow inside the body of the loop, the statement then consists of another If statement. The then and else part of this If statement are of type Assign since in the program we assign a map function in the rhs to a variable name in the lhs. 
-
-\begin{figure}[h!]
-\centering
-\includegraphics[width=0.8\linewidth]{figures/Tree}
-\caption{Scala AST of Program in Listing \ref{workflow2}}
-\label{fig:Tree}
-\end{figure}
-
-\section{Create CFG from AST Algorithm}
-Creating CFG from AST is the first stage of the intermediate code and code generation process. This algorithm takes as an input a Scala AST and produces the output of a lower-level intermediate representation CFG $G=(V,E)$ with set $V$ of vertices and a set $E$ of directed edges. Each vertex $V$ is a sequence of one or multiple nodes $n$ in the AST. 
-
-The idea is to traverse the tree from top to bottom starting from the $root$ and to visit each node $n$ of the children recursively. We check the type of each node $n$ and perform a set of actions accordingly. The procedure $createCFG(nCurr, G, vCurr, X)$ takes as input the following parameters. 
-\begin{itemize}
-\item $nCurr$ refers to the node that is currently being visited in the AST. In the beginning, $nCurr$ is initialized to root of the full AST of the program. Since we traverse the tree from top to bottom, the $nCurr$ becomes the root of the subtree of the initial root node. Depending on the type of the Tree, the $nCurr$ is either pushed to the current Vertex $vCurr$ or the subtree of the $nCurr$ is visited recursively. 
-
-\item $G=(V,E)$ refers to the CFG produced by the procedure and is continuously being updated whenever recursion takes place. The CFG consists of a set of vertices and a set of directed edges. Each vertex of the resulted CFG is a sequence of statements or nodes in the AST. The vertices set $V$ of the graph has initial member of $vCurr$ whereas the edges set $E$ is initialized to an empty set.   
-
-\item $vCurr$ refers to the vertex of the CFG that is currently being built. If the $nCurr$ or a subtree does not contain control flow or branches, the $nCurr$ will be pushed to the $vCurr$. Subsequently, if the subtree contains branches or control flow, new vertex will be added to the CFG as well as directed edges from the $vCurr$ to the new vertex. Furthermore, the new vertex will become the new $vCurr$ and the whole procedure of checking $nCurr$ for control flow is repeated. In the initialization, $vCurr$ is set to empty sequence since we just begin to traverse the tree. 
-
-\item $X$ is a stack to store the variable which contains branches and needs to be updated with the return value of either the then part or the else part of the control flow. In the algorithm, this variable will be re-assigned to the return value and will be deleted from the stack allowing the stack empty at the end of the procedure.  
-
-\end{itemize}
-
-\begin{algorithm}[h]
-
-\caption{Creating Control Flow Diagram from AST Part 1}\label{CFG}
-\begin{algorithmic}[1]
-\Initialize { $v_{curr}\gets [ ],V\gets \{v_{curr}\},E\gets \emptyset,X\gets [ ], n_{curr}\gets root$}
-\Procedure{createCFG}{$n_{curr},G,v_{curr},X$}
-\Switch {$n_{curr}$}
-  \Case {$Block(stats,expr)$}
-  	\For {each $s$ in $stats$}
-  	\State $(G,v_{curr},X)\gets \Call{createCFG}{s,G, v_{curr},\emptyset}$
-   	\EndFor  
-    \State $(G,v_{curr},X)\gets \Call{createCFG}{expr,G, v_{curr},X}$
-       	\State \textbf{return} $(G,v_{curr},X)$
-      \EndCase
-       
-  \Case {$ValDef(name, rhs)$}
-  		\If {$containsBranches(rhs)$}
-  			\State $\Call{push}{ValDef(name,\emptyset),v_{curr}} $
-  			\State $\Call{push}{name,X} $
-  			\State $(G,v_{curr},X)\gets \Call{createCFG}{rhs,G, v_{curr},X} $
-  		\Else
-  			\State $\Call{push}{n_{curr}, v_{curr}} $
-  		\EndIf
-  	\State \textbf{return} $(G,v_{curr},X)$
-  \EndCase
-
-  \Case {$Assign(name,rhs)$}
-    	\If {$containsBranches(rhs)$}
-    		\State $\Call{push}{name,X} $
-    		\State $(G,v_{curr},X)\gets \Call{createCFG}{rhs,G, v_{curr},X} $
-
-    	\Else
-    			\State $\Call{push}{n_{curr}, v_{curr}} $
-    		\EndIf
-    	\State \textbf{return} $(G,v_{curr},X)$
-  \EndCase
-  \Case {$While(cond,body)$}
-  	\State $v_{condStart} \gets \Call{newV}$
-  	\State $V \gets V \cup \{v_{condStart}\}; E \gets E \cup \{(v_{curr},v_{condStart})\}$ 
-  	\State $(G,v_{condEnd},X)\gets \Call{createCFG}{cond,G,v_{condStart},\emptyset} $
-  	\State $v_{bodyStart} \gets \Call{newV}{ }$
-  	\State $V \gets V \cup \{v_{bodyStart}\}; E \gets E \cup \{(v_{condEnd},v_{bodyStart})\}$
-  	\State $(G,v_{bodyEnd},X)\gets \Call{createCFG}{body,G, v_{bodyStart},\emptyset} $
-  	\State $v_{curr} \gets \Call{newV}{ }$
-  	\State $V \gets V \cup \{v_{curr}\}; E \gets E \cup \{(v_{condEnd},v_{curr}),(v_{bodyEnd},v_{condStart})\}$
-  	\State \textbf{return} $(G,v_{curr},X)$
-  \EndCase
- \algstore{bkbreak}
- \end{algorithmic}
- \end{algorithm}
- \begin{algorithm}
- \addtocounter{algorithm}{-1}
- \caption{Creating Control Flow Diagram from AST Part 2}\label{CFG2}
- \begin{algorithmic}[1]
- \algrestore{bkbreak}
-  \Case {$DoWhile(cond,body)$}
-      	\State $v_{bodyStart} \gets \Call{newV}{ }$
-      	\State $V \gets V \cup \{v_{bodyStart}\}; E \gets E \cup \{(v_{curr},v_{bodyStart})\}$
-  	\State $(G,v_{bodyEnd},X)\gets \Call{createCFG}{body,G, v_{body},\emptyset} $
-  	\State $v_{condStart} \gets \Call{newV}{ }$
-      	\State $V \gets V \cup \{v_{bodyEnd}, v_{condStart}\}; E \gets E \cup \{(v_{bodyEnd},v_{condStart})\}$ 
-      	\State $(G,v_{condEnd},X)\gets \Call{createCFG}{cond,G,v_{cond},\emptyset} $
-      	\State $v_{curr} \gets \Call{newV}{ }$
-      	\State $V \gets V \cup \{v_{curr},v_{condEnd}\}$
-      	\State $E \gets E \cup \{(v_{condEnd},v_{curr}),(v_{condEnd},v_{bodyStart})\}$
-      	\State \textbf{return} $(G,v_{curr},X)$
-    \EndCase
-  \Case {$If(cond,thenp,elsep)$}
-  	\State $(G,v_{cond},X)\gets \Call{createCFG}{cond,G, v_{cond},\emptyset}$
-  	\State $v_{thenp} \gets \Call{newV}{ }$
-  	\State $V \gets V \cup \{ v_{thenp}; E \gets E \cup \{(v_{curr},v_{thenp})\}$
-  	\State $(G,v_{thenp},X)\gets \Call{createCFG}{thenp,G, v_{thenp},X} $
-  	
-  	\State $v_{elsep} \gets \Call{newV}{ }$
-  	\State $V \gets V \cup \{v_{elsep}\};E \gets E \cup \{(v_{curr},v_{elsep})$
-  	\State $(G,v_{elsep},X)\gets \Call{createCFG}{elsep,G, v_{elsep},X} $
-  	
-  	\State $v_{curr} \gets \Call{newV}{ }$
-  	\State $V \gets V \cup \{v_{curr}\};E \gets E \cup \{(v_{thenp},v_{curr}),(v_{elsep},v_{curr})\}$
- 	  	
-  	\State \textbf{return} $(G,v_{curr},X)$
-    	
-  \EndCase
-
-  \Case { $\_$}
-  	\If {$X \neq \emptyset$}
-	\State $name \gets X.head$
-  	\State $\Call{push}{Assign(name,n_{curr}),v_{curr}} $ 
-  	\Else
-  	\State $\Call{push}{n_{curr},v_{curr}} $ 
-  	\EndIf 
-  	\State \textbf{return} $(G,v_{curr},X)$
-  	
-  \EndCase
- 
-\EndSwitch
-\EndProcedure
-\Procedure{containsBranches}{$n_{curr}$}
-\Switch {$n_{curr}$}
-  \Case {$Block(_,expr)$}
-  \State $\Call{containsBranches}{expr}$
-  \EndCase
-  \Case {$If(\_)$}
-  	\State \textbf{return} $true$
-  \EndCase
-  \Case {$\_$}
-    \State \textbf{return} $false$
-    \EndCase
-\EndSwitch
-\EndProcedure
-\end{algorithmic}
-\end{algorithm}
-
-Using Scala pattern matching, we are able to traverse the tree and match the current node of the tree $nCurr$ to a Scala AST type. Based on its type, the following procedure will be taken. 
-
-\begin{itemize}
-
-\item $Block(stats, expr)$.
-A Block typically consists of a list of statements and an expression. For every statement inside the Block, the procedure is called recursively and the Graph $G=(V,E)$, current vertex $vCurr$, and stack of variable $X$ are subsequently updated. After each statement is visited, the procedure is also called recursively for the single expression.  
-
-\item $ValDef(name,rhs)$
-As mentioned in the Scala AST introduction section, ValDef refers to definition of a variable both immutable (val) and mutable (var). In this case, we check whether the ValDef contains branches or control flow. If there is a control flow inside the ValDef, the same ValDef with a mutable identifier is pushed to the current vertex $vCurr$ and the name of the variable of type TermName is stored in the stack variable $X$. The name of the variable needs to be stored because it must be assigned later on with the value in the Then part or the Else part of the control flow. The rhs then becomes the current node $nCurr$ and the procedure is called recursively.  Sample program that will encounter this case is provided in the Listing 1.3 below. In this case, the variable $e3$ is stored in $X$ and later will be assigned to the function "e1.map {..}" or function "e2.map {..}".
-\begin{lstlisting}[language=scala,caption=ValDef with Branches, label = valdef]
-val e3 = if (e1.map(x => x._2).reduce((x, y) => Math.max(x, y)).fetch().head > 50)
-	e1.map { x => (x._1, x._2 + 1000, x._3)}
-else
-	e2.map { x => (x._1, x._2 + 1500, x._3)}
-\end{lstlisting}
-
-If the ValDef does not contain branches, then the current node $nCurr$ is simply pushed to the current vertex $vCurr$. 
-
-\item $Assign(name,rhs)$
-The procedure for the case Assign is similar with ValDef. We check whether the tree or node contains branches. If it does, the name of the variable is stored in the stack variable $X$ to be assigned later on with the value in the Then part or the Else part of the control flow. The procedure is then called recursively with the rhs as the new current node $nCurr$. Similar to ValDef, if the Tree does not contain branches, the current node $nCurr$ is simply pushed to the current vertex $vCurr$.
-
-\item $While(cond,body)$
-As depicted in Figure 2-3, for While loop, a new vertex $vCondStart$ is created to store the condition of the iteration. A directed edge is defined from the current vertex $vCurr$ to the new vertex $vCondStart$. A new vertex $vBodyStart$ is also created to store the statements in the $body$ of the iteration. Both the $cond$ and $body$ may or may not contain branches. Hence, recursive call both for $cond$ and $body$ take place which results in the new vertex $vCondEnd$ and $vBodyEnd$ respectively. A directed edge is defined from the end of the $body$ which is the vertex $vBodyEnd$ to the beginning of the $cond$ which is the vertex $vCondStart$. At the end, a new vertex is created as the new current vertex $vCurr$ and a directed edge is defined from the vertex $vBodyEnd$ to the new current vertex $vCurr$. 
-
-\item $DoWhile(cond,body)$
-The procedure for DoWhile case is similar with While case with the differences in the order the vertices are created as well as the directed edges connecting the vertices. The $vBodyStart$ is created first and is connected to the $vCurr$. The vertex result of the recursive call to the body of the iteration, vertex $vBodyEnd$ is connected to the new vertex $vCondStart$ which stores the condition of the iteration. The end of the condition $vCondEnd$ is connected to the start of the $body$ $vBodyStart$. Similar to the While loop, at the end, a new vertex is created as the new current vertex $vCurr$ and a directed edge is defined from the vertex $vCondEnd$ to the new current vertex $vCurr$. 
-
-\item $If(cond,thenp,elsep)$
-At first, we create a new vertex $vCond$ to store the condition of the If statement. A directed edge is connected from the current vertex $vCurr$ to the $vCond$. A recursive call is performed to the procedure since the $cond$ may or may not contain branches. We then create two new vertices $vThenp$ and $vElsep$ to represent the Then part and the Else part of the If statement consecutively. A directed edge is defined from $vCond$ to both new vertices $vThenp$ and $vElsep$ to represent all possible flows. Recursive call is performed both for the Then part $thenp$ and Else part $elsep$ since they may or may not contain branches. At the end, a new vertex is created as the new current vertex $vCurr$ and a directed edge is defined both from the vertex $vThenp$ and vertex $vElsep$ to the new current vertex $vCurr$. 
-
-\item $Default Case)$
-We first check whether the stack of variable $X$ contains any member. If yes, then we have get the last member inserted to $X$ which is a name, and assign the current node $nCurr$ to the name. This assignment is then pushed to the current vertex $vCurr$. If the stack variable $X$ does not contain any member, which means no assignment is needed, the current node $nCurr$ is simply pushed to the current vertex $vCurr$. 
-\end{itemize}
-
-We perform this algorithm with the input of the Scala AST of the program in Listing 2-1. The CFG result is shown in Figure 1.4. 
-
-\begin{figure}[h!]
-\centering
-\includegraphics[width=0.7\linewidth]{figures/FinalGraph}
-\caption{CFG of Scala AST of sample Program}
-\label{fig:FinalGraph}
-\end{figure}
-
-\section{Generate Control Flow Enriched Data-Flow}
-As described in section \ref{sec:DFAnalysis}, the CFG produced from the first stage of algorithm not yet depicts the transmission of information through program variables. Hence, in this stage of algorithm, we perform data-flow analysis on the CFG with the aim to compliment the existing CFG with the information on the flow of data between each vertex of the CFG. The flow of data is designed as another type of directed edge in the CFG which contains information of the variable that is shared from the one vertex to the vertex. 
-
-\subsection{Generate Def-Use Pair}
-In order to compliment the CFG with the data flow edges, the first step that we need to perform is to compute the set of variables defined and the set of variables used in each vertex of the CFG, which is denoted by $def_{B}$ and $use_{B}$, respectively (refer to theory in section \ref{sec:DFAnalysis}). Each vertex in the CFG is the same as basic block that we see in the theory - we will use the term vertex instead of basic block in this section. 
-
-Furthermore, we want to associate the vertex of the graph to the variable in the program that it defines or uses. Let the vertex be $B$ and each variable in the program be $v$. Then the association between the vertex and variable of the program can be defined as follows:
-
-\begin{algorithmic}
-\State$def_{(B,v)}\:holds,\:for\:a\:variable\:v\:and\:a\:vextex\:B,\:if\:B\:defines\:v$
-\State$use_{(B,v)}\:holds,\:for\:a\:variable\:v\:and\:a\:vextex\:B,\:if\:B\:uses\:the\:value\:of\:v$
-\end{algorithmic}
-
-Using these definitions, we generate the Def-Use pair information for each of the vertex in G(V,E) resulted from the first stage of the algorithm using the sample program in Listing \ref{workflow2}. The complimented CFG is depicted in Figure \ref{fig:DefUseGraph}.
-
-\begin{figure}[h!]
-\centering
-\includegraphics[width=0.9\linewidth]{figures/DefUsePairGraph}
-\caption{CFG with Def-Use Pair Information of Program in Listing \ref{workflow2}}
-\label{fig:DefUseGraph}
-\end{figure}
- 
-\subsection{Enrich CFG with Data-Flow}
-This subsection is the true essence of our second stage of the algorithm which is to produce a Control Flow enriched Data-Flow by adding another type of directed edges that depicts the information flow on variable of the program. After we compute the Def-Use pair of each vertex in the CFG, we are going to traverse the graph once again to enrich the CFG with another type of edge which is the data-flow edge. The data flow edge is a directed edge depicting the flow of information on program variables between vertices.
-
-The flow of information is derived from the Def-Use pair that we already computed for each vertex. The technique we deploy is by comparing two different vertices and checking whether one vertex $B1$ defines a variable v that the other vertex $B2$ uses. If so, then we draw a directed edge from vertex $B1$ to vertex $B2$ that depicts the data flow of variable v given that $def_{(B1,v)}$ reaches $use_{(B2,v)}$. This last property is related to the definition clear path problem and can be described as follow: 
-\begin{algorithmic}
-\State$def_{(B1,v)}\:reaches\:use_{(B2,v)}\:when\:there\:is\:a\:definition\:clear\:path\:from\:B1\:to\:B2$
-\end{algorithmic}
-
-A definition-use pair is formed only if there is a program path on which the value assigned in the definition can reach the point of use without being overwritten by another value. If there is another assignment to the same variable on the path, we say that the first definition is killed by the second. A definition-clear path is a path from definition to use on which the definition is not killed by another definition of the same variable \cite{young2008software}. Hence, the steps to enrich the CFG resulted from previous stage is summarized in the following Algorithm. The input of our algorithm is CFG G(V,E) with set of vertices V and a set of directed edges E as well as computed Def-Use pair for each vertex. The expected output of our algorithm is Control Flow Enriched Data Flow G(V,E,DFE) with DFE referring to a set of typed-directed edges that depicts the information flow of a variable from one vertex to another vertex. The result of data-flow analysis performed on CFG produced with sample program in Listing \ref{workflow2} is depicted in Figure \ref{fig:DFCFG} below.
-
-\begin{algorithm}[h]
-
-\caption{Adding Data Flow to CFG}\label{CFGDF}
-\begin{algorithmic}[1]
-\Require{$G(V,E) with Def-Use Pair for each vertex$}
-\Ensure{$G(V,E,DFE)$}
-\Initialize { $DFE\gets \emptyset$}
-\Procedure{createCFDFG}{$G$}
-\For{$each\:vertex\: B1\: in\: G$}
-\For{$each\: vertex\: B2\: in\: G\: other\: than\: B1$}
-\For{$each\: variable\: v\: in\: def_{B1}$}
-      \If {$There\: exists\: use(B2,v)\: and\: def(B1,v)\:reaches\: use(B2,v)$}
-      \State $DFE \gets DFE \cup \{(B1,B2,v)\} $
-      \EndIf
-\EndFor
-\EndFor
-\EndFor
-\State \textbf{return} $G$
-\EndProcedure
-\end{algorithmic}
-\end{algorithm}
-
-\begin{figure}[h!]
-\centering
-\includegraphics[width=0.8\linewidth]{figures/DataFlowGraph}
-\caption{Control Flow enriched Data Flow of Program in Listing \ref{workflow2}}
-\label{fig:DFCFG}
-\end{figure}
-
+XBaya supports a set of control primitives including for-each, conditional, while and exception. These control constructs are overlays on the dataflow graph to simplify the expression of the workflow. For example, a for-each construct can be used to encode a fan- out of a data flow graph where the degree of fan-out is not known until runtime. An exception construct is required when the workflow designer needs to express a sub-workflow alternative path when a part of the flow may be subject to potential, known runtime failures. BPEL has control structures including branching and looping built into the language but only for pre- defined fairly simple data types. For simple cases where we are comparing integers or simple strings, checking the condition is straightforward and unambiguous. The problem appears when we have to compare complex, structured scientific data in scientific workflows. This type of data often needs domain-specific knowledge in order to perform comparisons. Consequently, the evaluation of the comparison must be accomplished by an external service or agent, or a separate component, as part of the workflow execution. \cite{deelman2009workflows}.
