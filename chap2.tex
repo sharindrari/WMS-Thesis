@@ -61,7 +61,6 @@ Standard control flow constructs such as conditionals branching and iterations a
 if (A.reduce(_ + _)
 while (B.reduce(_ + _) < 10000)
 \end{lstlisting} 
-
 \subsection{Dataflow Model}
 
 In a dataflow model, a workflow is represented as a task dependency graph, in which nodes correspond to tasks, and edges indicate data dependencies. The graph specifies a relative order of execution, by constraining each task to begin only after those it depends on have completed assuming that each task is free of side effects, and that its output depends only on its inputs \cite{kelly2011applying}. Most data flow representations are very simple in nature, and unlike their control flow counterparts, contain nothing apart from component or service descriptions and the data dependencies between them; control constructs such as loops and branching are generally not included. The dependencies between tasks are data dependencies, ensuring the data producer has finished before the consumer may start \cite{deelman2009workflows}. The key advantage is that, in dataflow, more than one set of tasks can be executed at once. Tasks with no dependencies between them may thus be safely executed in parallel. This simple principle provides the potential for massive parallel execution at the tasks level \cite{johnston2004advances}.

@@ -40,6 +40,7 @@
 \usepackage{amsthm}
 \usepackage{textcomp}
 \usepackage{cleveref}[2012/02/15]
+\usepackage{xcolor}
 \crefformat{footnote}{#2\footnotemark[#1]#3}
 
 \usepackage{url}
@@ -47,11 +48,6 @@
 \floatname{algorithm}{Algorithm}
 \usepackage{subfig}
 
-\lstset{captionpos=b,
-        frame=tb,
-        basicstyle=\scriptsize\ttfamily,
-        showstringspaces=false,
-        keepspaces=true}
 \lstdefinestyle{matlab} {
         language=Matlab,
         keywordstyle=\color{blue},
@@ -78,6 +74,11 @@
   morestring=[b]"""
 }
 
+\lstset{captionpos=b,basicstyle=\scriptsize\ttfamily,
+        showstringspaces=false,
+        keepspaces=true}
+
+\lstset{frame=lrbt,xleftmargin=\fboxsep,xrightmargin=-\fboxsep}
 
 \newtheorem{theorem}{Theorem}[section]
 \newtheorem{lemma}[theorem]{Lemma}
@@ -177,6 +178,8 @@
 \include{chap1}
 \include{chap2}
 \include{chap3}
+\include{chap4}
+\include{chap5}
 \appendix
 \include{biblio}
 \end{document}
