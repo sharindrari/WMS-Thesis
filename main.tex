@@ -166,20 +166,32 @@
 %% process, or `all' to process all files which you \include.
 %% Krishna Sethuraman (1990).
 
-\begin{document}
-
 % Some departments (e.g. 5) require an additional signature page.  See
 % signature.tex for more information and uncomment the following line if
 % applicable.
-% \include{signature}
+% \include{signature}\newcounter{rememberpage}
+\newcounter{rememberpage}
+\begin{document}
+
+
+\pagestyle{empty}
+\include{cover-template}
 \pagestyle{plain}
-\include{cover}
+\pagenumbering{Roman}
 \include{contents}
+\setcounter{rememberpage}{\value{page}}
+
+\pagestyle{plain}
+\pagenumbering{arabic}
 \include{chap1}
 \include{chap2}
 \include{chap3}
 \include{chap4}
 \include{chap5}
 \appendix
+\pagenumbering{Roman}
+\setcounter{page}{\value{rememberpage}}
+\include{app2}
+\include{app3}
 \include{biblio}
 \end{document}
